@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useMemo } from 'react'
 
 import { Group, Button, Card, Skeleton, Space } from "@mantine/core"
 import { notifications } from '@mantine/notifications';
@@ -19,6 +19,32 @@ export interface FeedItemHeadingComponentProps {
     clipboardContent?: string,
 }
 
+export const copyToClipboard = async (textToCopy: string) => {
+    // Navigator clipboard api needs a secure context (https)
+    if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(textToCopy);
+    } else {
+        // Use the 'out of viewport hidden text area' trick
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+            
+        // Move textarea out of the viewport so it's not visible
+        textArea.style.position = "absolute";
+        textArea.style.left = "-999999px";
+            
+        document.body.prepend(textArea);
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+        } catch (error) {
+            console.error(error);
+        } finally {
+            textArea.remove();
+        }
+    }
+}
+
 function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
     const item = useContext(FeedItemContext)
     
@@ -35,7 +61,7 @@ function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
     // in the clipboard, otherwise, we are assuming that's an image.
     function doCopyItem() {
         if (clipboardContent) {
-            navigator.clipboard.writeText(clipboardContent)
+            copyToClipboard(clipboardContent)
             notifications.show({message:"Copied to clipboard!", ...defaultNotificationProps})
         }
         else {
@@ -120,7 +146,7 @@ export function YBFeedItemComponent(props: YBFeedItemComponentProps) {
                 setTextContent(text)
             })     
         }
-    })
+    }, [item])
 
     if (! item) {
         return(
@@ -130,13 +156,24 @@ export function YBFeedItemComponent(props: YBFeedItemComponentProps) {
         </Card>
         )
     }
+
+    const renderedContent = useMemo(() => {
+        if (typeof textContent === "object") {
+            try {
+                return JSON.stringify(textContent, null, '\t');
+            } catch(e) {
+                console.error("failed parsing object", textContent);
+            }
+        }
+        return textContent;
+    }, [textContent])
     
     return(
         <Card withBorder shadow="sm" radius="md" mb="2em">
-            <YBHeadingComponent onDelete={props.onDelete} clipboardContent={textContent}/>
+            <YBHeadingComponent onDelete={props.onDelete} clipboardContent={renderedContent}/>
             {(item.type===0)&&
             <YBFeedItemTextComponent>
-                {textContent}
+                {renderedContent}
             </YBFeedItemTextComponent>
             }
             {(item.type===1)&&

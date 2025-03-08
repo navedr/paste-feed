@@ -63,6 +63,7 @@
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.3.3",
     "prop-types": "^15.8.1",
+    "react-json-viewer-cool": "^2.0.0",
     "storybook": "^8.2.9",
     "storybook-dark-mode": "^4.0.2",
     "stylelint": "^16.9.0",

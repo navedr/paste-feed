@@ -7,7 +7,7 @@ import { notifications } from '@mantine/notifications';
 import { Menu, ActionIcon, Center, Group, rem, Button, Box} from '@mantine/core';
 
 
-import { YBBreadCrumbComponent, YBPasteCardComponent, YBFeedItemsComponent, YBNotificationToggleComponent } from './Components'
+import { YBBreadCrumbComponent, YBPasteCardComponent, YBFeedItemsComponent, YBNotificationToggleComponent, copyToClipboard } from './Components'
 import { defaultNotificationProps } from './config';
 
 import {
@@ -80,7 +80,7 @@ export function YBFeedFeed() {
 
     const copyLink = () => {
         const link = window.location.href + "?secret=" + secret
-        navigator.clipboard.writeText(link)
+        copyToClipboard(link)
         notifications.show({
             message:'Link Copied!', ...defaultNotificationProps
         })
