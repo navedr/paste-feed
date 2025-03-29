@@ -1,11 +1,10 @@
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function YBFeedItemTextComponent(props: any) {
-    return(
+    return (
         <div className="itemContainer">
             <div className="itemText">
-                <pre style={{overflowY:"scroll", fontSize: "0.8em"}}>{props.children}</pre>
+                <pre style={{ overflowY: "scroll", fontSize: "0.8em" }}>{props.children}</pre>
             </div>
         </div>
-    )
+    );
 }

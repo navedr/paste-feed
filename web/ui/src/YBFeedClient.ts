@@ -1,9 +1,9 @@
-import { APIClient } from "./APIClient"
+import { APIClient } from "./APIClient";
 
 class YBFeedClient extends APIClient {
     constructor() {
-        super('/api')
+        super("/api");
     }
 }
 
-export const Y = new YBFeedClient()
+export const Y = new YBFeedClient();

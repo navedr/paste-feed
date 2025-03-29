@@ -1,0 +1,15 @@
+services:
+  paste-feed:
+    image: paste-feed-dev:latest
+    build:
+      context: .
+      dockerfile: Dockerfile-dev
+    volumes:
+      - .:/app  # Mount backend source code for live edits
+      - /app/bin  # Avoid overwriting Go build artifacts
+      - /app/vendor  # Exclude Go modules cache
+      - ./web/ui/dist:/app/web/ui/dist
+    ports:
+      - "8080:8080"
+    environment:
+      - GO_ENV=development

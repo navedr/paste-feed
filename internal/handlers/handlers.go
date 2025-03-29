@@ -27,50 +27,72 @@ import (
 
 var hL = yblog.NewYBLogger("http", []string{"DEBUG", "DEBUG_HTTP"})
 
-var webUiHandler = http.FileServer(http.FS(ui.GetUiFs()))
+var devMode = os.Getenv("GO_ENV") == "development"
+var webUiHandler http.Handler
+
+func init() {
+    // In development mode, serve files directly from disk
+    if devMode {
+        webUiHandler = http.FileServer(http.Dir("/app/web/ui/dist"))
+    } else {
+        // In production mode, use embedded filesystem
+        webUiHandler = http.FileServer(http.FS(ui.GetUiFs()))
+    }
+}
 
 // RootHandlerFunc figures out how to handle incoming HTTP requests.
 // If the requests points to an existing file in web UI (CSS, JS, etc)
 // then it serves this file from webUiHandler, otherwise it returns
 // index.html for proper react routing
 func RootHandlerFunc(w http.ResponseWriter, r *http.Request) {
-	hL.Logger.Debug("Root request", slog.String("request_uri", r.RequestURI))
+    hL.Logger.Debug("Root request", slog.String("request_uri", r.RequestURI))
 
-	p := r.URL.Path
+    p := r.URL.Path
 
-	ui := ui.GetUiFs()
+    // Different handling logic for dev vs production
+    if devMode {
+        // For dev mode, check if file exists on disk
+        filePath := "/app/web/ui/dist" + p
+        if _, err := os.Stat(filePath); err == nil {
+            webUiHandler.ServeHTTP(w, r)
+            return
+        }
 
-	//
-	// Serve path from web UI if file exists
-	//
+        // Serve index.html for client-side routing
+        content, err := os.ReadFile("/app/web/ui/dist/index.html")
+        if err != nil {
+            hL.Logger.Error("Unable to read index.html", slog.String("error", err.Error()))
+            return
+        }
+        w.Write(content)
+    } else {
+        // Production mode - use embedded filesystem as before
+        ui := ui.GetUiFs()
 
-	// Strip "/" at the beginning of path
-	p = p[1:]
+        // Strip "/" at the beginning of path
+        p = p[1:]
 
-	matches, err := fs.Glob(ui, p)
+        matches, err := fs.Glob(ui, p)
+        if err != nil {
+            hL.Logger.Error("Unable to get web ui fs", slog.String("error", err.Error()))
+        }
 
-	if err != nil {
-		hL.Logger.Error("Unable to get web ui fs", slog.String("error", err.Error()))
-	}
+        if len(matches) == 1 {
+            webUiHandler.ServeHTTP(w, r)
+            return
+        }
 
-	if len(matches) == 1 {
-		webUiHandler.ServeHTTP(w, r)
-		return
-	}
+        // Everything else goes to index.html
+        content, err := fs.ReadFile(ui, "index.html")
+        if err != nil {
+            hL.Logger.Error("Unable to read index.html from web ui", slog.String("error", err.Error()))
+        }
 
-	//
-	// Everything else goes to index.html
-	//
-
-	content, err := fs.ReadFile(ui, "index.html")
-	if err != nil {
-		hL.Logger.Error("Unable to read index.html from web ui", slog.String("error", err.Error()))
-	}
-
-	_, err = w.Write(content)
-	if err != nil {
-		hL.Logger.Error("Error while writing HTTP response", slog.String("error", err.Error()))
-	}
+        _, err = w.Write(content)
+        if err != nil {
+            hL.Logger.Error("Error while writing HTTP response", slog.String("error", err.Error()))
+        }
+    }
 }
 
 // Handle requests to /api
@@ -201,7 +223,7 @@ func (api *ApiHandler) GetServer() *chi.Mux {
 	})
 	r.Get("/*", RootHandlerFunc)
 
-	slog.Info("ybFeed starting",
+	slog.Info("paste-feed starting",
 		slog.String("version", api.Version),
 		slog.String("data_dir", api.BasePath),
 		slog.Int("port", api.HttpPort),

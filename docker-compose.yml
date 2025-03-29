@@ -1,7 +1,7 @@
 services:
-  ybYaml:
-    image: ybfeed:latest
-    build: ./repo
+  paste-feed:
+    image: paste-feed:latest
+    build: .
     restart: unless-stopped
     environment:
       - PUID=1000
@@ -11,4 +11,4 @@ services:
     volumes:
       - ./data:/data
     ports:
-      - 8090:8080
+      - "8090:8080"

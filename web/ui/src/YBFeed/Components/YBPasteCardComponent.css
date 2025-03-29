@@ -3,9 +3,9 @@
     margin-bottom: 2em;
     text-align: center;
     padding: 2em;
-    border: 1px solid #BBB;
+    border: 1px solid #bbb;
     border-radius: 5px;
 }
-.pasteDiv:focus-within  {
+.pasteDiv:focus-within {
     background-color: rgb(221, 221, 221);
 }

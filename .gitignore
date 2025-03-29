@@ -1,8 +1,9 @@
 node_modules
 web/ui/build/
-/data/
+data/
 **/.DS_Store
 /ybFeed
 dist/
 .vscode
 __debug*
+.idea

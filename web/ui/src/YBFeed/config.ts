@@ -1,1 +1,1 @@
-export const defaultNotificationProps = { withCloseButton: false }
+export const defaultNotificationProps = { withCloseButton: false };

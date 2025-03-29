@@ -1,0 +1,23 @@
+# Use Golang base image
+FROM golang AS golang
+WORKDIR /app
+
+# Copy backend source code
+ADD . /app/
+
+# Ensure dependencies are up to date
+RUN go mod tidy
+RUN go mod vendor
+
+# Skip frontend build; expect `dist/` to be mounted from the host machine
+
+# Dev build: Enable debugging, live reload (optional)
+RUN CGO_ENABLED=0 go build -o /ybFeed cmd/ybfeed/*.go
+
+# Final minimal container
+FROM scratch
+COPY --from=golang /ybFeed /ybFeed
+
+EXPOSE 8080
+
+ENTRYPOINT [ "/ybFeed" ]
