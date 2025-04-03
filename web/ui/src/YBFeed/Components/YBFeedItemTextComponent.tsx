@@ -1,4 +1,7 @@
 import linkifyHtml from "linkify-html";
+import highlighter from "highlight.js";
+import "highlight.js/styles/github-dark.min.css";
+import React from "react";
 
 const syntaxHighlight = (json: string) => {
     json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -22,14 +25,32 @@ const syntaxHighlight = (json: string) => {
     );
 };
 
+function isValidUrl(str: string) {
+    try {
+        const url = new URL(str);
+        return /^https?:\/\//.test(url.href); // Ensure it starts with http or https
+    } catch (e) {
+        return false;
+    }
+}
+
 export const YBFeedItemTextComponent = ({ content, type }: { content: string; type: string }) => {
+    React.useEffect(() => {
+        highlighter.configure({ ignoreUnescapedHTML: true, noHighlightRe: /https?:\/\/[^\s]+/g });
+    }, []);
+
     return (
         <div className="itemContainer">
             <div className="itemText">
                 <pre
                     style={{ fontSize: "0.8em", whiteSpace: "break-spaces", wordWrap: "break-word" }}
                     dangerouslySetInnerHTML={{
-                        __html: type === "json" ? syntaxHighlight(content) : linkifyHtml(content, { target: "_blank" }),
+                        __html:
+                            type === "json"
+                                ? syntaxHighlight(content)
+                                : isValidUrl(content)
+                                  ? linkifyHtml(content, { target: "_blank" })
+                                  : linkifyHtml(highlighter.highlightAuto(content).value, { target: "_blank" }),
                     }}
                 />
             </div>

@@ -9,6 +9,7 @@ services:
       - /app/bin  # Avoid overwriting Go build artifacts
       - /app/vendor  # Exclude Go modules cache
       - ./web/ui/dist:/app/web/ui/dist
+      - ./data:/data
     ports:
       - "8080:8080"
     environment:
