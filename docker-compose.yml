@@ -1,7 +1,6 @@
 services:
   paste-feed:
-    image: paste-feed:latest
-    build: .
+    image: navedrangwala/paste-feed:latest
     restart: unless-stopped
     environment:
       - PUID=1000

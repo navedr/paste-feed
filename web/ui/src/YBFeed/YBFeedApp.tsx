@@ -21,7 +21,7 @@ export function YBFeedApp() {
     return (
         <AppShell withBorder={false}>
             <AppShell.Main>
-                <Container size="md" mx="auto">
+                <Container size="xl" mx="auto">
                     <RouterProvider router={router} />
                 </Container>
             </AppShell.Main>

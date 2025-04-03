@@ -10,7 +10,7 @@ WORKDIR /app
 ADD . /app/
 COPY --from=node /app/web/ui/dist/ /app/web/ui/dist/
 RUN go mod vendor
-RUN CGO_ENABLED=0 go build -o /ybFeed cmd/ybfeed/*.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /ybFeed cmd/ybfeed/*.go
 
 FROM scratch
 COPY --from=golang /ybFeed /ybFeed

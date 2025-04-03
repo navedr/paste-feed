@@ -9,3 +9,28 @@
 .pasteDiv:focus-within {
     background-color: rgb(221, 221, 221);
 }
+
+pre {
+    background-color: #000;
+    padding: 10px;
+}
+
+.string {
+    color: lightgreen;
+}
+
+.number {
+    color: darkorange;
+}
+
+.boolean {
+    color: lightblue;
+}
+
+.null {
+    color: magenta;
+}
+
+.key {
+    color: lightcoral;
+}

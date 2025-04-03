@@ -1,5 +1,5 @@
 services:
-  paste-feed:
+  paste-feed-dev:
     image: paste-feed-dev:latest
     build:
       context: .

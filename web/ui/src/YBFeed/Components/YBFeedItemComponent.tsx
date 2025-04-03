@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from "react";
-
+import moment from "moment";
 import { Button, Card, Group, Skeleton, Space } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconClipboardCopy, IconDownload, IconFile, IconPhoto, IconTrash, IconTxt } from "@tabler/icons-react";
@@ -46,11 +46,11 @@ function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
 
     const { clipboardContent } = props;
 
-    let name,
+    let date,
         type = undefined;
 
     if (item) {
-        ({ name, type } = item);
+        ({ type, date } = item);
     }
 
     // Copy item to pasteboard
@@ -78,7 +78,7 @@ function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
                         {type === 0 && <IconTxt />}
                         {type === 1 && <IconPhoto />}
                         {type === 2 && <IconFile />}
-                        &nbsp;{name}
+                        &nbsp;{moment(date).fromNow()}
                     </Group>
                     <Group>
                         {item === undefined ? (
@@ -155,18 +155,23 @@ export function YBFeedItemComponent(props: YBFeedItemComponentProps) {
     const renderedContent = useMemo(() => {
         if (typeof textContent === "object") {
             try {
-                return JSON.stringify(textContent, null, "\t");
+                return {
+                    content: JSON.stringify(textContent, null, "\t"),
+                    type: "json",
+                };
             } catch (e) {
                 console.error("failed parsing object", textContent);
             }
         }
-        return textContent;
+        return { content: textContent, type: "string" };
     }, [textContent]);
+
+    const { content, type } = renderedContent;
 
     return (
         <Card withBorder shadow="sm" radius="md" mb="2em">
-            <YBHeadingComponent onDelete={props.onDelete} clipboardContent={renderedContent} />
-            {item.type === 0 && <YBFeedItemTextComponent>{renderedContent}</YBFeedItemTextComponent>}
+            <YBHeadingComponent onDelete={props.onDelete} clipboardContent={content} />
+            {content && item.type === 0 && <YBFeedItemTextComponent content={content} type={type} />}
             {item.type === 1 && <YBFeedItemImageComponent />}
             {item.type === 2 && <Space />}
         </Card>

@@ -93,7 +93,8 @@ export function YBNotificationToggleComponent(props: NotificationToggleProps) {
                     variant={notificationsOn ? "filled" : "outline"}
                     aria-label="Settings"
                     onClick={toggleNotifications}
-                    loading={loading}>
+                    loading={loading}
+                >
                     <IconBell style={{ width: "70%", height: "70%" }} stroke={1.5} />
                 </ActionIcon>
             )}

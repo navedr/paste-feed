@@ -134,7 +134,8 @@ export function YBPasteCardComponent() {
                     Y.post("/feeds/" + encodeURIComponent(feedName), formData);
                 }}
                 onReject={files => console.log("rejected files", files)}
-                maxSize={5 * 1024 ** 2}>
+                maxSize={5 * 1024 ** 2}
+            >
                 <Center h={"100vh"}>Drop files here</Center>
             </Dropzone.FullScreen>
         </Center>

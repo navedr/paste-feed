@@ -28,7 +28,8 @@ export function ConfirmPopoverButton(props: PropsWithChildren<ConfirmPopoverButt
                     onClick={() => {
                         props.onConfirm();
                         setOpened(false);
-                    }}>
+                    }}
+                >
                     {props.buttonTitle}
                 </Button>
             </Popover.Dropdown>

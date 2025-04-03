@@ -104,6 +104,7 @@ export function YBFeedFeed() {
         Connector.AuthenticateFeed(feedName, e)
             .then(s => {
                 setSecret(s.toString());
+                setAuthenticated(true);
             })
             .catch(e => {
                 notifications.show({ message: e.message, color: "red", ...defaultNotificationProps });
