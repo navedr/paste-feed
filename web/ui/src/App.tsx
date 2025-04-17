@@ -15,7 +15,7 @@ const theme = createTheme({
 
 export default function App() {
     return (
-        <MantineProvider theme={theme} defaultColorScheme="auto">
+        <MantineProvider theme={theme} defaultColorScheme="dark">
             <Notifications position="top-center" autoClose={2000} />
             <YBFeedApp />
         </MantineProvider>

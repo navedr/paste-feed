@@ -1,7 +1,7 @@
+import React from "react";
 import linkifyHtml from "linkify-html";
 import highlighter from "highlight.js";
 import "highlight.js/styles/github-dark.min.css";
-import React from "react";
 
 const syntaxHighlight = (json: string) => {
     json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
