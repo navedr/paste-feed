@@ -219,6 +219,7 @@ func (api *ApiHandler) GetServer() *chi.Mux {
 		r.Delete("/{feedName}/subscription", api.subscriptionDeleteFunc)
 		r.Delete("/{feedName}/items", api.itemsDeleteFunc)
 		r.Get("/{feedName}/items/{itemName}", api.itemGetFunc)
+		r.Post("/{feedName}/items/{itemName}", api.itemUpdateFunc)
 		r.Delete("/{feedName}/items/{itemName}", api.itemDeleteFunc)
 	})
 	r.Get("/*", RootHandlerFunc)
@@ -450,6 +451,89 @@ func (api *ApiHandler) itemGetFunc(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (api *ApiHandler) itemUpdateFunc(w http.ResponseWriter, r *http.Request) {
+	hL.Logger.Debug("Item API UPDATE request", slog.String("request_uri", r.RequestURI))
+
+	secret, _ := utils.GetSecret(r)
+
+	feedName, _ := url.QueryUnescape(chi.URLParam(r, "feedName"))
+	if feedName == "" {
+		utils.CloseWithCodeAndMessage(w, 500, "Unable to obtain feed name")
+		return
+	}
+
+	f, err := api.FeedManager.GetFeedWithAuth(feedName, secret)
+	if err != nil {
+		switch {
+		case errors.Is(err, feed.FeedErrorNotFound):
+			utils.CloseWithCodeAndMessage(w, 404, fmt.Sprintf("feed '%s' not found", feedName))
+		case errors.Is(err, feed.FeedErrorInvalidSecret):
+			utils.CloseWithCodeAndMessage(w, 401, "Unauthorized")
+		default:
+			utils.CloseWithCodeAndMessage(w, 500, fmt.Sprintf("Error while getting feed: %s", err.Error()))
+		}
+		return
+	}
+
+	itemName, _ := url.QueryUnescape(chi.URLParam(r, "itemName"))
+	if itemName == "" {
+		utils.CloseWithCodeAndMessage(w, 400, "Unable to obtain item name")
+		return
+	}
+
+	// Verify item exists
+	_, err = f.GetItemData(itemName)
+	if err != nil {
+		switch {
+		case errors.Is(err, feed.FeedErrorItemNotFound):
+			utils.CloseWithCodeAndMessage(w, 404, "Item does not exist")
+		default:
+			utils.CloseWithCodeAndMessage(w, 500, err.Error())
+		}
+		return
+	}
+
+	// Read the new name from request body
+	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		utils.CloseWithCodeAndMessage(w, 500, "Unable to read request body")
+		return
+	}
+
+	type ItemUpdate struct {
+		Name string `json:"name"`
+	}
+
+	var update ItemUpdate
+	if err := json.Unmarshal(body, &update); err != nil {
+		utils.CloseWithCodeAndMessage(w, 400, "Invalid JSON payload")
+		return
+	}
+
+	if update.Name == "" {
+		utils.CloseWithCodeAndMessage(w, 400, "Name cannot be empty")
+		return
+	}
+
+	// Set the item name override in the feed configuration
+	err = f.SetItemNameOverride(itemName, update.Name)
+	if err != nil {
+		utils.CloseWithCodeAndMessage(w, 500, fmt.Sprintf("Failed to update item name: %s", err.Error()))
+		return
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	response, _ := json.Marshal(map[string]string{
+		"originalName": itemName,
+		"displayName":  update.Name,
+	})
+	if _, err := w.Write(response); err != nil {
+		hL.Logger.Error("Error while writing HTTP response", slog.String("error", err.Error()))
+	}
+}
+
 func (api *ApiHandler) feedPostFunc(w http.ResponseWriter, r *http.Request) {
 	hL.Logger.Debug("Item API POST request", slog.String("request_uri", r.RequestURI))
 
@@ -648,3 +732,4 @@ func (api *ApiHandler) subscriptionDeleteFunc(w http.ResponseWriter, r *http.Req
 func (api *ApiHandler) postSecretsHandler(w http.ResponseWriter, r *http.Request) {
 	api.FeedManager.DumpSecrets()
 }
+

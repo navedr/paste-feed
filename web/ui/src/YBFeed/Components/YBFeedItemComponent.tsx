@@ -1,8 +1,17 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState, KeyboardEvent } from "react";
 import moment from "moment";
-import { Button, Card, Group, Skeleton, Space } from "@mantine/core";
+import { Button, Card, Chip, Group, Skeleton, Space, TextInput, Tooltip, UnstyledButton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconClipboardCopy, IconDownload, IconFile, IconPhoto, IconTrash, IconTxt } from "@tabler/icons-react";
+import {
+    IconCheck,
+    IconClipboardCopy,
+    IconDownload,
+    IconFile,
+    IconPhoto,
+    IconTrash,
+    IconTxt,
+    IconX,
+} from "@tabler/icons-react";
 
 import { copyImageItem, FeedItemContext, YBFeedItemImageComponent, YBFeedItemTextComponent } from ".";
 import { Connector, YBFeedItem } from "../";
@@ -43,15 +52,67 @@ export const copyToClipboard = async (textToCopy: string) => {
 
 function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
     const item = useContext(FeedItemContext);
+    const [isEditing, setIsEditing] = useState(false);
+    const [newName, setNewName] = useState("");
 
     const { clipboardContent } = props;
 
     let date,
-        type = undefined;
+        type = undefined,
+        name = "",
+        displayName = "";
 
     if (item) {
-        ({ type, date } = item);
+        ({ type, date, name, displayName } = item);
     }
+
+    const [nameToShow, setNameToShow] = useState(displayName || name.split(".")[0]);
+
+    // Start editing mode
+    const handleStartEdit = () => {
+        setNewName(nameToShow); // Set initial name without extension
+        setIsEditing(true);
+    };
+
+    // Cancel editing
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+    };
+
+    // Save updated name
+    const handleSaveEdit = () => {
+        if (!item || !newName.trim()) return;
+
+        Connector.UpdateItem(item, newName)
+            .then(response => {
+                console.log("Item updated successfully", response);
+                setIsEditing(false);
+                notifications.show({
+                    message: "Name updated successfully!",
+                    ...defaultNotificationProps,
+                });
+                setNameToShow(newName); // Update the displayed name
+                // Force refresh to show the updated name
+                // Note: In a real app, you might want to update the item in context/state
+            })
+            .catch(error => {
+                console.error("Failed to update name", error);
+                notifications.show({
+                    message: "Failed to update name",
+                    color: "red",
+                    ...defaultNotificationProps,
+                });
+            });
+    };
+
+    // Handle key press events in the input field
+    const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            handleSaveEdit();
+        } else if (e.key === "Escape") {
+            handleCancelEdit();
+        }
+    };
 
     // Copy item to pasteboard
     // if `clipboardContent` is set as an attribute, this is what will be put
@@ -78,7 +139,38 @@ function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
                         {type === 0 && <IconTxt />}
                         {type === 1 && <IconPhoto />}
                         {type === 2 && <IconFile />}
-                        &nbsp;{moment(date).fromNow()}
+
+                        {isEditing ? (
+                            <Button.Group>
+                                <TextInput
+                                    value={newName}
+                                    onChange={e => setNewName(e.currentTarget.value)}
+                                    onKeyDown={handleKeyPress}
+                                    autoFocus
+                                    onFocus={e => e.target.select()}
+                                    size="xs"
+                                    style={{ width: "300px" }}
+                                    variant="filled"
+                                />
+                                <Button size="xs" variant="filled" color="green" onClick={handleSaveEdit} p="xs">
+                                    <IconCheck size={16} />
+                                </Button>
+                                <Button size="xs" variant="filled" color="red" onClick={handleCancelEdit} p="xs">
+                                    <IconX size={16} />
+                                </Button>
+                            </Button.Group>
+                        ) : (
+                            <Tooltip label="Click to Edit" position="bottom" withArrow>
+                                <UnstyledButton
+                                    onClick={handleStartEdit}
+                                    style={{
+                                        borderBottom: "1px dashed #ccc",
+                                        paddingBottom: "2px",
+                                    }}>
+                                    {nameToShow}
+                                </UnstyledButton>
+                            </Tooltip>
+                        )}
                     </Group>
                     <Group>
                         {item === undefined ? (
@@ -88,6 +180,7 @@ function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
                             </>
                         ) : (
                             <>
+                                <Chip>{moment(date).fromNow()}</Chip>
                                 {type === 2 ? (
                                     <Button
                                         component="a"

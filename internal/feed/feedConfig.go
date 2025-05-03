@@ -22,6 +22,7 @@ var FeedConfigErrorPinIncorrectLength = errors.New("feed pin length is not 4")
 type FeedConfig struct {
 	Secret        string `json:"secret"`
 	PIN           *PIN   `json:"pin,omitempty"`
+	ItemNameOverrides map[string]string      `json:"itemNameOverrides,omitempty"`
 	Subscriptions []webpush.Subscription
 	feed          *Feed
 }

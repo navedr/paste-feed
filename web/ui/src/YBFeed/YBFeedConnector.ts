@@ -31,43 +31,11 @@ class YBFeedConnector {
                 .then(f => {
                     resolve(f as YBFeed);
                 })
-                // .then((f) => {
-                //     if (f) {
-                //         const result = f as YBFeed
-                //         // f.vapidpublickey = f.vapidpublickey
-                //         // for (let i=0;i<f.items.length;i++) {
-                //         //     result.items[i].feed = f
-                //         // }
-                //         resolve(result)
-                //     }
-                // })
+
                 .catch(e => {
                     console.log(e);
                     reject(new YBFeedError(e.status, "Server Unavailable"));
                 });
-
-            // fetch(this.feedUrl(feedName),{
-            //         credentials: "include"
-            // })
-            // .then((f) => {
-            //     if (f.ok) {
-            //         return f.json()
-            //     }
-            //     else {
-            //         reject(new YBFeedError(f.status, "Server Error: " + f.statusText))
-            //     }
-            // })
-            // .then((f) => {
-            //     const result = f
-            //     result.vapidpublickey = f.vapidpublickey
-            //     for (let i=0;i<f.items.length;i++) {
-            //         result.items[i].feed = f
-            //     }
-            //     resolve(result)
-            // })
-            // .catch((e) => {
-            //     reject(new YBFeedError(e.status, "Server Unavailable"))
-            // })
         });
     }
     async AuthenticateFeed(feedName: string, secret: string): Promise<string | YBFeedError> {
@@ -86,26 +54,6 @@ class YBFeedConnector {
                         reject(new YBFeedError(error.status, "Server Unavailable"));
                     }
                 });
-
-            // fetch(this.feedUrl(feedName)+"?secret="+encodeURIComponent(secret),{
-            //     credentials: "include"
-            // })
-            // .then(f => {
-            //     if (f.status !== 200) {
-            //         f.text()
-            //         .then(text => {
-            //             reject(new YBFeedError(f.status, text))
-            //         })
-            //         .catch(() => {
-            //             reject(new YBFeedError(f.status, "Server Unavailable"))
-            //         })
-            //     } else {
-            //         f.json()
-            //         .then((j) => {
-            //             resolve(j.secret)
-            //         })
-            //     }
-            // })
         });
     }
     async GetItem(item: YBFeedItem): Promise<string> {
@@ -288,6 +236,20 @@ class YBFeedConnector {
             // .catch((e) => {
             //     reject(new YBFeedError(e.status, "Server Unavailable"))
             // })
+        });
+    }
+
+    async UpdateItem(item: YBFeedItem, newName: string): Promise<{ originalName: string; displayName: string }> {
+        return new Promise((resolve, reject) => {
+            Y.post("/feeds/" + encodeURIComponent(item.feed.name) + "/items/" + encodeURIComponent(item.name), {
+                name: newName,
+            })
+                .then(response => {
+                    resolve(response as { originalName: string; displayName: string });
+                })
+                .catch(error => {
+                    reject(new YBFeedError(error.status, "Error updating item name"));
+                });
         });
     }
 }

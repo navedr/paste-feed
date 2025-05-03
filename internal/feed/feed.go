@@ -28,14 +28,16 @@ type PublicFeed struct {
 	Items          []PublicFeedItem `json:"items"`
 	Secret         string           `json:"secret"`
 	VAPIDPublicKey string           `json:"vapidpublickey"`
+	ItemNameOverrides    map[string]map[string]string `json:"itemNameOverrides,omitempty"`
 }
 
 // PublicFeedItem is used to provide a json representation of a feed item.
 type PublicFeedItem struct {
-	Name string       `json:"name"`
-	Date time.Time    `json:"date"`
-	Type FeedItemType `json:"type"`
-	Feed *PublicFeed  `json:"feed"`
+	Name        string       `json:"name"`
+	Date        time.Time    `json:"date"`
+	Type        FeedItemType `json:"type"`
+	Feed        *PublicFeed  `json:"feed"`
+	DisplayName string       `json:"displayName,omitempty"`
 }
 
 // FeedItemType defines the type of an item in the feed
@@ -227,13 +229,23 @@ func (feed *Feed) publicItems() ([]PublicFeedItem, error) {
 			return nil, fmt.Errorf("%w: %s", FeedErrorUnableToReadItemInfo, path.Join(feed.Path, f.Name()))
 		}
 
-		// Append feed item to result
-		items = append(items, PublicFeedItem{
+			// Create a new PublicFeedItem
+		item := PublicFeedItem{
 			Name: f.Name(),
 			Date: info.ModTime(),
 			Type: GetItemType(f.Name()),
 			Feed: &PublicFeed{Name: feed.Name()},
-		})
+		}
+		
+		// Check if there's a name override for this item
+		if feed.Config.ItemNameOverrides != nil {
+			if displayName, exists := feed.Config.ItemNameOverrides[f.Name()]; exists {
+				item.DisplayName = displayName
+			}
+		}
+
+		// Append feed item to result
+		items = append(items, item)
 	}
 
 	// Sort result based on date
@@ -474,3 +486,18 @@ func (feed *Feed) SetPIN(pin string) error {
 	}
 	return nil
 }
+
+// SetItemNameOverride sets or updates a display name override for a specific item
+func (feed *Feed) SetItemNameOverride(itemName string, displayName string) error {
+	// Initialize the map if it doesn't exist
+	if feed.Config.ItemNameOverrides == nil {
+		feed.Config.ItemNameOverrides = make(map[string]string)
+	}
+	
+	// Store the override
+	feed.Config.ItemNameOverrides[itemName] = displayName
+	
+	// Save the config to persist the change
+	return feed.Config.Write()
+}
+
