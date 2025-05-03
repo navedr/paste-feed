@@ -170,6 +170,28 @@ func (m *WebSocketManager) NotifyAdd(item *PublicFeedItem) error {
 	return nil
 }
 
+// NotifyUpdate notifies all connected websockets that an item has been updated
+func (m *WebSocketManager) NotifyUpdate(item *PublicFeedItem) error {
+	wsL.Logger.Debug("Notify websocket update",
+		slog.Any("item", item),
+		slog.Int("ws count", len(m.FeedSockets)))
+	for _, f := range m.FeedSockets {
+		wsL.Logger.Debug("checking feed", slog.String("feedName", f.feedName))
+		if f.feedName == item.Feed.Name {
+			wsL.Logger.Debug("found feed", slog.String("feedName", f.feedName))
+			for _, w := range f.websockets {
+				if err := w.WriteJSON(FeedNotification{
+					Action: "update",
+					Item:   *item,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // NotifyRemove notify all connected websockets that an item has been removed
 func (m *WebSocketManager) NotifyRemove(item *PublicFeedItem) error {
 	wsL.Logger.Debug("Notify websocket",

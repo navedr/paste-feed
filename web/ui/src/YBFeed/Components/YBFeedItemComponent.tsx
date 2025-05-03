@@ -57,16 +57,9 @@ function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
 
     const { clipboardContent } = props;
 
-    let date,
-        type = undefined,
-        name = "",
-        displayName = "";
+    const { type, date, name = "", displayName = "" } = item || {};
 
-    if (item) {
-        ({ type, date, name, displayName } = item);
-    }
-
-    const [nameToShow, setNameToShow] = useState(displayName || name.split(".")[0]);
+    const nameToShow = useMemo(() => displayName || name.split(".")[0], [displayName, name]);
 
     // Start editing mode
     const handleStartEdit = () => {
@@ -84,16 +77,13 @@ function YBHeadingComponent(props: FeedItemHeadingComponentProps) {
         if (!item || !newName.trim()) return;
 
         Connector.UpdateItem(item, newName)
-            .then(response => {
-                console.log("Item updated successfully", response);
+            .then(() => {
                 setIsEditing(false);
                 notifications.show({
                     message: "Name updated successfully!",
                     ...defaultNotificationProps,
                 });
-                setNameToShow(newName); // Update the displayed name
-                // Force refresh to show the updated name
-                // Note: In a real app, you might want to update the item in context/state
+                // setNameToShow(newName); // Update the displayed name
             })
             .catch(error => {
                 console.error("Failed to update name", error);

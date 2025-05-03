@@ -38,6 +38,16 @@ export function YBFeedItemsComponent(props: YBFeedItemsComponentProps) {
         props.setEmpty && props.setEmpty(false);
     };
 
+    const updateItem = (item: YBFeedItem) => {
+        const newI = feedItems.map(i => {
+            if (i.name === item.name) {
+                return item;
+            }
+            return i;
+        });
+        setFeedItems(newI);
+    };
+
     useEffect(() => {
         const webSocketURL =
             window.location.protocol.replace("http", "ws") +
@@ -119,6 +129,8 @@ export function YBFeedItemsComponent(props: YBFeedItemsComponentProps) {
                         removeItem(am.item);
                     } else if (am.action === "add") {
                         addItem(am.item);
+                    } else if (am.action === "update") {
+                        updateItem(am.item);
                     } else if (am.action === "empty") {
                         setFeedItems([]);
                         props.setEmpty && props.setEmpty(true);

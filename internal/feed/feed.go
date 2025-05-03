@@ -293,7 +293,7 @@ func (feed *Feed) GetPublicItem(i string) (*PublicFeedItem, error) {
 		return nil, err
 	}
 
-	return &PublicFeedItem{
+	item := &PublicFeedItem{
 		Name: i,
 		Date: s.ModTime(),
 		Type: GetItemType(i),
@@ -301,7 +301,16 @@ func (feed *Feed) GetPublicItem(i string) (*PublicFeedItem, error) {
 			Name:   feed.Name(),
 			Secret: feed.Config.Secret,
 		},
-	}, nil
+	}
+
+    // Check if there's a name override for this item
+    if feed.Config.ItemNameOverrides != nil {
+        if displayName, exists := feed.Config.ItemNameOverrides[i]; exists {
+            item.DisplayName = displayName
+        }
+    }
+
+	return item, nil
 }
 
 // GetItemData returns the content of a specific feed item
@@ -498,6 +507,24 @@ func (feed *Feed) SetItemNameOverride(itemName string, displayName string) error
 	feed.Config.ItemNameOverrides[itemName] = displayName
 	
 	// Save the config to persist the change
-	return feed.Config.Write()
+	err := feed.Config.Write()
+	if err != nil {
+		return err
+	}
+	
+	// Get the updated item to use for notification
+	publicItem, err := feed.GetPublicItem(itemName)
+	if err != nil {
+		return err
+	}
+	
+	// Notify all connected websockets about the name update
+	if feed.WebSocketManager != nil {
+		if err = feed.WebSocketManager.NotifyUpdate(publicItem); err != nil {
+			return err
+		}
+	}
+	
+	return nil
 }
 
