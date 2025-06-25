@@ -120,6 +120,7 @@ export function YBFeedFeed() {
 
     const refreshFeed = () => {
         feedItemsRef.current?.refreshItems();
+        notifications.show({ message: "Feed refreshed!", ...defaultNotificationProps });
     };
 
     if (authenticated === false) {
