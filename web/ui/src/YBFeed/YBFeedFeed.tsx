@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 import { useParams, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 
@@ -12,10 +12,11 @@ import {
     YBFeedItemsComponent,
     YBNotificationToggleComponent,
     copyToClipboard,
+    YBFeedItemsComponentHandle,
 } from "./Components";
 import { defaultNotificationProps } from "./config";
 
-import { IconLink, IconHash } from "@tabler/icons-react";
+import { IconLink, IconHash, IconRefresh } from "@tabler/icons-react";
 import { PinModal } from "./Components/PinModal";
 import { PinRequest } from "./Components/PinRequest";
 import { Connector } from "./YBFeedConnector";
@@ -34,6 +35,8 @@ export function YBFeedFeed() {
     const [vapid, setVapid] = useState<string | undefined>(undefined);
 
     const [fatal, setFatal] = useState(false);
+
+    const feedItemsRef = useRef<YBFeedItemsComponentHandle>(null);
 
     if (!feedName) {
         navigate("/");
@@ -115,6 +118,10 @@ export function YBFeedFeed() {
         Connector.EmptyFeed(feedName);
     };
 
+    const refreshFeed = () => {
+        feedItemsRef.current?.refreshItems();
+    };
+
     if (authenticated === false) {
         return <PinRequest sendPIN={sendPIN} />;
     }
@@ -138,6 +145,9 @@ export function YBFeedFeed() {
                                 </Button>
                             </ConfirmPopoverButton>
                         )}
+                        <ActionIcon size="md" variant="outline" aria-label="Menu" onClick={refreshFeed}>
+                            <IconRefresh style={{ width: "70%", height: "70%" }} stroke={1.5} />
+                        </ActionIcon>
                         {vapid && <YBNotificationToggleComponent vapid={vapid} feedName={feedName} />}
                         <Menu trigger="hover" position="bottom-end" withArrow arrowPosition="center">
                             <Menu.Target>
@@ -165,7 +175,7 @@ export function YBFeedFeed() {
 
                     <YBPasteCardComponent />
 
-                    <YBFeedItemsComponent feedName={feedName} secret={secret} setEmpty={setEmpty} />
+                    <YBFeedItemsComponent ref={feedItemsRef} feedName={feedName} secret={secret} setEmpty={setEmpty} />
                 </>
             )}
         </Box>

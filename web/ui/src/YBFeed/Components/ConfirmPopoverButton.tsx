@@ -12,9 +12,15 @@ export function ConfirmPopoverButton(props: PropsWithChildren<ConfirmPopoverButt
     const [opened, setOpened] = useToggle();
 
     return (
-        <Popover opened={opened} onClose={() => setOpened(false)} width={200} position="bottom" withArrow shadow="md">
+        <Popover
+            closeOnClickOutside
+            onClose={() => setOpened(false)}
+            width={200}
+            position="bottom"
+            withArrow
+            shadow="md">
             <Popover.Target>
-                <Box onClick={() => setOpened(true)}>{props.children}</Box>
+                <Box onClick={() => setOpened(!opened)}>{props.children}</Box>
             </Popover.Target>
             <Popover.Dropdown className={classes.popover}>
                 <Text ta="center" size="xs" mb="xs">
@@ -28,8 +34,7 @@ export function ConfirmPopoverButton(props: PropsWithChildren<ConfirmPopoverButt
                     onClick={() => {
                         props.onConfirm();
                         setOpened(false);
-                    }}
-                >
+                    }}>
                     {props.buttonTitle}
                 </Button>
             </Popover.Dropdown>

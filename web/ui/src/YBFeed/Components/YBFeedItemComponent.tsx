@@ -246,7 +246,7 @@ export function YBFeedItemComponent(props: YBFeedItemComponentProps) {
                 console.error("failed parsing object", textContent);
             }
         }
-        return { content: textContent, type: "string" };
+        return { content: textContent?.toString(), type: "string" };
     }, [textContent]);
 
     const { content, type } = renderedContent;

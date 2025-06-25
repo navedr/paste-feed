@@ -430,6 +430,16 @@ func (f *Feed) AddItem(contentType string, filename string, r io.Reader) error {
 		return fmt.Errorf("%w: %s", FeedErrorErrorWriting, filePath)
 	}
 
+	// Remove any existing name override for this item
+	fullItemName := filename + "." + ext
+	if f.Config.ItemNameOverrides != nil {
+		if _, exists := f.Config.ItemNameOverrides[fullItemName]; exists {
+			delete(f.Config.ItemNameOverrides, fullItemName)
+			// Save the config to persist the removal
+			f.Config.Write()
+		}
+	}
+
 	// Get PublicItem for the added content
 	publicItem, err := f.GetPublicItem(filename + "." + ext)
 
@@ -527,4 +537,5 @@ func (feed *Feed) SetItemNameOverride(itemName string, displayName string) error
 	
 	return nil
 }
+
 
