@@ -1,14 +1,19 @@
 services:
   paste-feed-prod:
     image: paste-feed:latest
-    build: .
+    build:
+      context: .
+      secrets:
+        - npmrc
     restart: unless-stopped
     environment:
-      - PUID=1000
-      - PGID=1002
-      - UMASK=002
+      - FEED_DATA_DIR=/data
       - TZ=America/Los_Angeles
     volumes:
       - ./data:/data
     ports:
       - "8090:8080"
+
+secrets:
+  npmrc:
+    file: ${HOME}/.npmrc

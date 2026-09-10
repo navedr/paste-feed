@@ -3,9 +3,7 @@ services:
     image: navedrangwala/paste-feed:latest
     restart: unless-stopped
     environment:
-      - PUID=1000
-      - PGID=1002
-      - UMASK=002
+      - FEED_DATA_DIR=/data
       - TZ=America/Los_Angeles
     volumes:
       - ./data:/data

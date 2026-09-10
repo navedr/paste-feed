@@ -1,6 +1,6 @@
 /*eslint no-restricted-globals: ["error"]*/
 self.addEventListener('push', event => {
-    const title = 'YBFeed Notification';
+    const title = 'Paste Feed Notification';
     const options = {
       body: event.data.text(),
       icon:"logo192.png",

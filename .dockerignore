@@ -1,1 +1,8 @@
+.git
 **/node_modules
+**/dist
+**/build
+data
+.env
+.env.*
+**/.DS_Store

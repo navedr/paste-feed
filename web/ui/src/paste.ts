@@ -1,4 +1,4 @@
-import { Y } from "./YBFeedClient";
+import { Y } from "./FeedClient";
 
 export const PasteToFeed = (event: ClipboardEvent, feedName: string) => {
     if (event.clipboardData === null) {

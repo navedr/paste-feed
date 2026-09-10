@@ -1,6 +1,6 @@
 ### Introduction
 
-**ybFeed** is a personal micro feed where you can post snippets of 
+**Paste Feed** is a personal micro feed where you can post snippets of
 text or images.
 
 The primary use case is to share information between computers when you don't
@@ -11,7 +11,7 @@ be kept in sync when you add or remove items.
 
 ### Concepts
 
-On ybFeed home page, you are invited to create a feed with a unique name.
+On Paste Feed home page, you are invited to create a feed with a unique name.
 
 Once on a feed, you can paste data in it, text or images, they will be
 displayed with the newest items at the top.
@@ -37,7 +37,7 @@ Here are some I already identified :
 
 - Paste might not work over non secured connections (https), this is a
 limitation as a security measure with some web browsers
-- ybFeed relies on a cookie to authenticate a session, if the cookie is lost
+- Paste Feed relies on a cookie to authenticate a session, if the cookie is lost
 there is no easy way to retrieve the feed (you can get it back from the
 `config.json` file in the feed directory)
 - Most modern browser won't honor long cookie lifetime, you might have to
@@ -46,71 +46,83 @@ recover the secret from `config.json` if it happens.
 the filesystem
 - No rate control or capacity limits, quite exposed to flooding as it is
 
+### Run with Docker
+
+Build and start from this checkout (requires Docker with Compose):
+
+```sh
+mkdir -p data
+docker compose -f docker-compose-prod.yml up -d --build
+```
+
+Open http://localhost:8090. The image contains both the UI and TypeScript
+server. Compose mounts `./data` at `/data`; feed files, configuration, and push
+notification keys survive container replacement. Back up that directory before
+upgrading from the Go version, and keep it mounted at `/data`.
+
+Check startup and health:
+
+```sh
+docker compose -f docker-compose-prod.yml ps
+docker compose -f docker-compose-prod.yml logs --tail=100
+```
+
+To build an image and run it directly:
+
+```sh
+docker build --secret id=npmrc,src="$HOME/.npmrc" -t paste-feed:latest .
+docker run -d --name paste-feed --restart unless-stopped \
+  -p 8090:8080 -v "$(pwd)/data:/data" paste-feed:latest
+```
+
+The registry requires authentication in your user `~/.npmrc`. Compose and the
+build command pass that file as a BuildKit secret; credentials are not copied
+into the image.
+
+The image runs the test suite during its build, installs locked production
+dependencies, and checks `/api` for health. Put it behind an HTTPS reverse proxy
+for browser clipboard and push notification support; forward `/ws` WebSocket
+upgrades as well as ordinary HTTP traffic.
+
+`docker-compose.yml` is the alternative configuration for the prebuilt
+`navedrangwala/paste-feed:latest` image. Building locally does not update that
+registry image.
+
 ### Environment variables
-| Variable name | Description |
-|---------------|-------------|
-| `YBF_DATA_DIR` | points to an alternative direcotry to store data, default is `./data/` in current directory. |
-| `YBF_HTTP_PORT` | TCP port to run the server, default is `8080`. |
-| `YBF_LISTEN_ADDR` | IP address to bind, default is `0.0.0.0`. |
-| ` YBF_MAX_UPLOAD_SIZE` | Maximum size for added items an files, default is 5MB. |
 
-### Installation
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FEED_DATA_DIR` | `/data` in Docker; `./data` locally | Persistent feed and configuration directory. |
+| `FEED_HTTP_PORT` | `8080` | Server TCP port. |
+| `FEED_LISTEN_ADDR` | `0.0.0.0` | Bind address. |
+| `FEED_MAX_UPLOAD_SIZE` | `5` | Maximum file size in MiB; one file per upload. |
+| `MASTER_PIN` | unset | Optional four-digit PIN that unlocks every feed. |
 
-#### Using Docker registry
+Set overrides in Compose's `environment` section or with `docker run -e`.
+`PUID`, `PGID`, and `UMASK` are not interpreted by this Node image. If you need a
+specific container identity, use Compose `user: "uid:gid"` and give that identity
+write access to the mounted data directory.
 
-Use this method to treat youself with a quick demo of the most current version
+### Local development
 
-```
-mkdir data
-docker run -p 8080:8080 -v $(pwd)/data:/data ghcr.io/ybizeul/ybfeed:latest
-```
+Use Node.js 22 and install from the repository root. The project uses
+`https://npm.ecar1.us/` via `.npmrc`:
 
-You can now point your browser to http://localhost:8080/
-
-#### Using Docker from source
-
-Use this method if you're interested by the code and hacking around
-
-```
-git clone https://github.com/ybizeul/ybFeed.git
-cd ybFeed
-docker compose up -d
+```sh
+npm ci --legacy-peer-deps
+npm run dev
 ```
 
-You can now point your browser to http://localhost:8080/
+In another terminal, run `npm run dev:ui` and open http://localhost:5173.
+The Vite server forwards API and WebSocket requests to port 8080.
 
-### Building
-
-#### Using Makefile
-
-```
-make
-```
-
-#### Manually
-
-Once you cloned the repository, issue the following commands :
-```
-cd web/ui/
-
-# Install node dependencies
-npm install
-
-# Build UI
+```sh
+npm test
 npm run build
-
-# Build Go binary
-cd ../../
-go build -o ybFeed cmd/ybfeed/*.go
-
-# Run ybFeed
-./ybFeed
-
-# Point your browser to port http://localhost:8080
+npm start
 ```
 
-#### Building container
-
-```
-docker build . -t ybfeed
-```
+The built server serves the UI at http://localhost:8080. Tests use temporary
+storage and do not touch your local feeds. Docker smoke tests can be run with
+`npm run test:docker` after building `paste-feed:latest`; they create and remove
+an isolated container and volume to verify startup, uploads, and persistence.

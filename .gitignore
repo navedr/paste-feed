@@ -1,10 +1,8 @@
-node_modules
+node_modules/
+server/dist/
 web/ui/build/
+web/ui/dist/
 data/
 **/.DS_Store
-/ybFeed
-dist/
 .vscode
-__debug*
 .idea
-venv

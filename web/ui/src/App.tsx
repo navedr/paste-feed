@@ -7,7 +7,7 @@ import "@mantine/dropzone/styles.css";
 import { MantineProvider, createTheme } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 
-import { YBFeedApp } from "./YBFeed/YBFeedApp";
+import { FeedApp } from "./Feed/FeedApp";
 
 const theme = createTheme({
     primaryColor: "gray",
@@ -17,7 +17,7 @@ export default function App() {
     return (
         <MantineProvider theme={theme} defaultColorScheme="dark">
             <Notifications position="top-center" autoClose={2000} />
-            <YBFeedApp />
+            <FeedApp />
         </MantineProvider>
     );
 }
