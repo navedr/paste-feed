@@ -1,4 +1,5 @@
 import { createContext, useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import { createPortal } from "react-dom";
 import { Space, TextInput, Box } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { FeedItemComponent } from ".";
@@ -12,6 +13,7 @@ export interface FeedItemsComponentProps {
     secret: string;
     onDelete?: (item: FeedItem) => void;
     setEmpty?: (arg0: boolean) => void;
+    statusContainer?: HTMLElement | null;
 }
 
 export interface FeedItemsComponentHandle {
@@ -175,14 +177,18 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
             !!searchTerm ? item.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) : true,
         );
 
+        const connectionStatus = (
+            <div role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap", gap: "0.5rem", fontSize: "0.75rem" }}>
+                <span style={{ borderRadius: "1rem", padding: "0.2rem 0.65rem", background: "var(--mantine-color-default)", color: connection === "Connected" ? "var(--mantine-color-teal-4)" : connection === "Offline" ? "var(--mantine-color-red-4)" : "var(--mantine-color-yellow-4)" }}>
+                    <span aria-hidden="true">● </span>{connection}
+                </span>
+                {lastSync && <span style={{ color: "var(--mantine-color-dimmed)" }}>Synced at {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>}
+            </div>
+        );
+
         return (
             <>
-                <div role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem", fontSize: "0.75rem" }}>
-                    <span style={{ borderRadius: "1rem", padding: "0.2rem 0.65rem", background: "var(--mantine-color-default)", color: connection === "Connected" ? "var(--mantine-color-teal-4)" : connection === "Offline" ? "var(--mantine-color-red-4)" : "var(--mantine-color-yellow-4)" }}>
-                        <span aria-hidden="true">● </span>{connection}
-                    </span>
-                    {lastSync && <span style={{ color: "var(--mantine-color-dimmed)" }}>Synced at {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>}
-                </div>
+                {props.statusContainer === undefined ? connectionStatus : props.statusContainer && createPortal(connectionStatus, props.statusContainer)}
                 <Box mb="md">
                     <TextInput
                         placeholder="Search items..."

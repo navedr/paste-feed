@@ -22,14 +22,14 @@ test('file picker accepts several files and exposes saved, error and retry feedb
   fireEvent.click(screen.getByRole('button', { name: 'Retry b.txt' }));
   await waitFor(() => expect(screen.getAllByText('Saved to feed')).toHaveLength(2));
 });
-test('pasting in another form field does not upload, but the paste area shows pending progress', async () => {
+test('pasting in another form field does not upload, but page-wide paste shows pending progress', async () => {
   let finish!: (value: string) => void;
   vi.mocked(Y.post).mockReturnValue(new Promise(resolve => { finish = resolve; }));
   render(<MantineProvider><input aria-label="Search" /><PasteCardComponent /></MantineProvider>);
   const clipboardData = { items: [], getData: () => 'hello' };
   fireEvent.paste(screen.getByLabelText('Search'), { clipboardData });
   expect(Y.post).not.toHaveBeenCalled();
-  fireEvent.paste(screen.getByLabelText('Paste into feed'), { clipboardData });
+  fireEvent.paste(document.body, { clipboardData });
   await waitFor(() => expect(screen.getByText('Uploading 0%')).toBeTruthy());
   act(() => vi.mocked(Y.post).mock.calls[0][2]!.onUploadProgress!({ progress: 0.5 } as any));
   expect(screen.getByText('Uploading 50%')).toBeTruthy();

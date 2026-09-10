@@ -16,7 +16,8 @@ On Paste Feed home page, you are invited to create a feed with a unique name.
 Once on a feed, you can paste data in it, text or images, they will be
 displayed with the newest items at the top.
 
-Use the paste area, choose multiple files, or drop files onto the feed. Each
+Paste anywhere outside editable fields, use the toolbar upload icon to choose
+multiple files, or drop files onto the feed. Each
 file shows its own progress and is marked saved after the server confirms it.
 Failed files show an explanation and a Retry button. Files upload in sequence;
 the upload size limit applies to each file. Leaving the feed cancels pending

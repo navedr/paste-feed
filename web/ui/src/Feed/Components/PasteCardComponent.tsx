@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
-import { Box, Button, Group, Paper, Progress, Stack, Text, Textarea } from "@mantine/core";
+import { ActionIcon, Box, Button, Group, Progress, Stack, Text } from "@mantine/core";
 import { Dropzone } from "@mantine/dropzone";
 import { IconUpload } from "@tabler/icons-react";
 import { clipboardFiles } from "../../paste";
@@ -10,15 +11,14 @@ function fileSize(bytes: number): string {
     return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function PasteCardComponent({ onSaved }: { onSaved?: () => void }) {
+export function PasteCardComponent({ onSaved, uploadContainer }: { onSaved?: () => void; uploadContainer?: HTMLElement | null }) {
     const { feedName = "" } = useParams();
     const { jobs, enqueue, retry, dismiss, clearSaved } = useUploadQueue(feedName, onSaved);
     const picker = useRef<HTMLInputElement>(null);
     useEffect(() => {
         const paste = (event: ClipboardEvent) => {
             const target = event.target;
-            if (target instanceof Element && target.closest('input, textarea, [contenteditable="true"]') &&
-                !target.closest('[data-feed-paste]')) return;
+            if (target instanceof Element && target.closest('input, textarea, [contenteditable="true"]')) return;
             const files = clipboardFiles(event);
             if (files.length) { event.preventDefault(); enqueue(files); }
         };
@@ -28,22 +28,17 @@ export function PasteCardComponent({ onSaved }: { onSaved?: () => void }) {
 
     if (!feedName) return null;
     const pending = jobs.filter(job => job.status === "queued" || job.status === "uploading").length;
+    const uploadButton = (
+        <ActionIcon variant="outline" size="md" aria-label="Choose files" title="Choose files" onClick={() => picker.current?.click()}>
+            <IconUpload size={18} />
+        </ActionIcon>
+    );
     return (
-        <Paper withBorder radius="md" p="md" my="lg">
-            <Group justify="space-between" mb="sm">
-                <Box>
-                    <Text fw={600} size="sm">Add to this feed</Text>
-                    <Text size="xs" c="dimmed">Paste text or images, or drop several files anywhere.</Text>
-                </Box>
-                <Button variant="light" size="xs" leftSection={<IconUpload size={15} />} onClick={() => picker.current?.click()}>
-                    Choose files
-                </Button>
-                <input ref={picker} type="file" multiple hidden aria-label="Choose files to upload" onChange={event => {
-                    enqueue(Array.from(event.target.files ?? [])); event.target.value = "";
-                }} />
-            </Group>
-            <Textarea data-feed-paste aria-label="Paste into feed" placeholder="Paste here…" value="" onChange={() => {}}
-                autosize minRows={2} maxRows={4} />
+        <>
+            {uploadContainer === undefined ? uploadButton : uploadContainer && createPortal(uploadButton, uploadContainer)}
+            <input ref={picker} type="file" multiple hidden aria-label="Choose files to upload" onChange={event => {
+                enqueue(Array.from(event.target.files ?? [])); event.target.value = "";
+            }} />
             <Dropzone.FullScreen onDrop={enqueue} onReject={rejected => enqueue(rejected.map(entry => entry.file))} multiple>
                 <Stack h="100vh" align="center" justify="center">
                     <IconUpload size={40} />
@@ -72,6 +67,6 @@ export function PasteCardComponent({ onSaved }: { onSaved?: () => void }) {
                     {job.error && <Text size="xs" c="red" mt={4} role="alert">{job.error}</Text>}
                 </Box>)}
             </Stack>}
-        </Paper>
+        </>
     );
 }

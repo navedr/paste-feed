@@ -28,6 +28,8 @@ export function FeedFeed() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const [secret, setSecret] = useState<string>("");
+    const [uploadContainer, setUploadContainer] = useState<HTMLDivElement | null>(null);
+    const [statusContainer, setStatusContainer] = useState<HTMLDivElement | null>(null);
     const [empty, setEmpty] = useState<boolean>(false);
 
     const [pinModalOpen, setPinModalOpen] = useState(false);
@@ -136,6 +138,7 @@ export function FeedFeed() {
             {authenticated === true && (
                 <>
                     <Group gap="xs" justify="flex-end" style={{ float: "right" }}>
+                        <div ref={setStatusContainer} />
                         {!empty && (
                             <ConfirmPopoverButton
                                 onConfirm={deleteAll}
@@ -146,6 +149,7 @@ export function FeedFeed() {
                                 </Button>
                             </ConfirmPopoverButton>
                         )}
+                        <div ref={setUploadContainer} />
                         <ActionIcon size="md" variant="outline" aria-label="Menu" onClick={refreshFeed}>
                             <IconRefresh style={{ width: "70%", height: "70%" }} stroke={1.5} />
                         </ActionIcon>
@@ -174,9 +178,9 @@ export function FeedFeed() {
                     <BreadCrumbComponent />
                     <PinModal opened={pinModalOpen} setOpened={() => setPinModalOpen(false)} setPIN={setPIN} />
 
-                    <PasteCardComponent key={feedName} onSaved={() => feedItemsRef.current?.refreshItems()} />
+                    <PasteCardComponent key={feedName} uploadContainer={uploadContainer} onSaved={() => feedItemsRef.current?.refreshItems()} />
 
-                    <FeedItemsComponent ref={feedItemsRef} feedName={feedName} secret={secret} setEmpty={setEmpty} />
+                    <FeedItemsComponent ref={feedItemsRef} feedName={feedName} secret={secret} setEmpty={setEmpty} statusContainer={statusContainer} />
                 </>
             )}
         </Box>
