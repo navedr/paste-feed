@@ -137,45 +137,46 @@ export function FeedFeed() {
         <Box>
             {authenticated === true && (
                 <>
-                    <Group gap="xs" justify="flex-end" style={{ float: "right" }}>
-                        <div ref={setStatusContainer} />
-                        {!empty && (
-                            <ConfirmPopoverButton
-                                onConfirm={deleteAll}
-                                buttonTitle="Delete All"
-                                message="Do you really want to delete everything ?">
-                                <Button size="xs" variant="outline" color="red">
-                                    Empty
-                                </Button>
-                            </ConfirmPopoverButton>
-                        )}
-                        <div ref={setUploadContainer} />
-                        <ActionIcon size="md" variant="outline" aria-label="Menu" onClick={refreshFeed}>
-                            <IconRefresh style={{ width: "70%", height: "70%" }} stroke={1.5} />
-                        </ActionIcon>
-                        {vapid && <NotificationToggleComponent vapid={vapid} feedName={feedName} />}
-                        <Menu trigger="hover" position="bottom-end" withArrow arrowPosition="center">
-                            <Menu.Target>
-                                <ActionIcon size="md" variant="outline" aria-label="Menu" onClick={copyLink}>
-                                    <IconLink style={{ width: "70%", height: "70%" }} stroke={1.5} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Item
-                                    leftSection={<IconLink style={{ width: rem(14), height: rem(14) }} />}
-                                    onClick={copyLink}>
-                                    Copy Permalink
-                                </Menu.Item>
-                                <Menu.Item
-                                    leftSection={<IconHash style={{ width: rem(14), height: rem(14) }} />}
-                                    onClick={() => setPinModalOpen(true)}>
-                                    Set Temporary PIN
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
+                    <Group justify="space-between" align="center" gap="sm" mt="md" mb="md">
+                        <BreadCrumbComponent />
+                        <Group gap="xs" justify="flex-end">
+                            <div ref={setStatusContainer} />
+                            {!empty && (
+                                <ConfirmPopoverButton
+                                    onConfirm={deleteAll}
+                                    buttonTitle="Delete All"
+                                    message="Do you really want to delete everything ?">
+                                    <Button size="xs" variant="outline" color="red">
+                                        Empty
+                                    </Button>
+                                </ConfirmPopoverButton>
+                            )}
+                            <div ref={setUploadContainer} />
+                            <ActionIcon size="md" variant="outline" aria-label="Menu" onClick={refreshFeed}>
+                                <IconRefresh style={{ width: "70%", height: "70%" }} stroke={1.5} />
+                            </ActionIcon>
+                            {vapid && <NotificationToggleComponent vapid={vapid} feedName={feedName} />}
+                            <Menu trigger="hover" position="bottom-end" withArrow arrowPosition="center">
+                                <Menu.Target>
+                                    <ActionIcon size="md" variant="outline" aria-label="Menu" onClick={copyLink}>
+                                        <IconLink style={{ width: "70%", height: "70%" }} stroke={1.5} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={<IconLink style={{ width: rem(14), height: rem(14) }} />}
+                                        onClick={copyLink}>
+                                        Copy Permalink
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={<IconHash style={{ width: rem(14), height: rem(14) }} />}
+                                        onClick={() => setPinModalOpen(true)}>
+                                        Set Temporary PIN
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        </Group>
                     </Group>
-
-                    <BreadCrumbComponent />
                     <PinModal opened={pinModalOpen} setOpened={() => setPinModalOpen(false)} setPIN={setPIN} />
 
                     <PasteCardComponent key={feedName} uploadContainer={uploadContainer} onSaved={() => feedItemsRef.current?.refreshItems()} />

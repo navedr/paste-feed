@@ -27,5 +27,5 @@ export function BreadCrumbComponent() {
         ),
     );
 
-    return <Breadcrumbs mt="1em">{items}</Breadcrumbs>;
+    return <Breadcrumbs>{items}</Breadcrumbs>;
 }
