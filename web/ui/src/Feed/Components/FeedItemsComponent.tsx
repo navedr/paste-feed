@@ -25,6 +25,8 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
         const navigate = useNavigate();
         const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
         const [searchTerm, setSearchTerm] = useState<string>("");
+        const [connection, setConnection] = useState("Connecting");
+        const [lastSync, setLastSync] = useState<Date | null>(null);
         // Setup websocket to receive feed events
         const ws = useRef<WebSocket | null>(null);
 
@@ -47,6 +49,7 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
                 "//" + window.location.host + "/ws/" + encodeURIComponent(feedName) +
                 "?secret=" + encodeURIComponent(secret);
             let disposed = false;
+            let offline = !navigator.onLine;
             let retryTimer: ReturnType<typeof setTimeout> | undefined;
             let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
             let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
@@ -62,8 +65,9 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
             function retry(socket: WebSocket) {
                 if (disposed || ws.current !== socket) return;
                 disconnect(socket);
+                setConnection(offline ? "Offline" : "Reconnecting");
                 clearTimeout(retryTimer);
-                retryTimer = setTimeout(connect, 1000);
+                if (!offline) retryTimer = setTimeout(connect, 1000);
             }
 
             function scheduleHeartbeat(socket: WebSocket) {
@@ -80,7 +84,7 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
             }
 
             function connect() {
-                if (disposed) return;
+                if (disposed || offline) return;
                 const socket = new WebSocket(webSocketURL);
                 ws.current = socket;
                 // Also recover when the opening handshake never completes.
@@ -88,6 +92,7 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
                 socket.onopen = () => {
                     if (disposed || ws.current !== socket) return;
                     clearTimeout(deadlineTimer);
+                    setConnection("Syncing");
                     socket.send("feed");
                     scheduleHeartbeat(socket);
                 };
@@ -102,10 +107,14 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
                         const message = JSON.parse(event.data);
                         if (Array.isArray(message?.items)) {
                             setFeedItems(message.items);
+                            setConnection("Connected");
+                            setLastSync(new Date());
                         } else if (message?.action === "empty") {
                             setFeedItems([]);
+                            setLastSync(new Date());
                         } else if (message?.item && typeof message.item.name === "string") {
                             const item = message.item as FeedItem;
+                            setLastSync(new Date());
                             if (message.action === "add") {
                                 setFeedItems(items => [item, ...items.filter(i => i.name !== item.name)]);
                             } else if (message.action === "remove") {
@@ -131,10 +140,29 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
                 };
             }
 
+            function wentOffline() {
+                offline = true;
+                clearTimeout(retryTimer);
+                if (ws.current) disconnect(ws.current);
+                setConnection("Offline");
+            }
+            function wentOnline() {
+                offline = false;
+                clearTimeout(retryTimer);
+                if (ws.current) disconnect(ws.current);
+                setConnection("Reconnecting");
+                connect();
+            }
+            window.addEventListener("offline", wentOffline);
+            window.addEventListener("online", wentOnline);
             setFeedItems([]);
+            setLastSync(null);
+            setConnection(offline ? "Offline" : "Connecting");
             connect();
             return () => {
                 disposed = true;
+                window.removeEventListener("offline", wentOffline);
+                window.removeEventListener("online", wentOnline);
                 clearTimeout(retryTimer);
                 clearTimeout(heartbeatTimer);
                 clearTimeout(deadlineTimer);
@@ -149,6 +177,12 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
 
         return (
             <>
+                <div role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem", fontSize: "0.75rem" }}>
+                    <span style={{ borderRadius: "1rem", padding: "0.2rem 0.65rem", background: "var(--mantine-color-default)", color: connection === "Connected" ? "var(--mantine-color-teal-4)" : connection === "Offline" ? "var(--mantine-color-red-4)" : "var(--mantine-color-yellow-4)" }}>
+                        <span aria-hidden="true">● </span>{connection}
+                    </span>
+                    {lastSync && <span style={{ color: "var(--mantine-color-dimmed)" }}>Synced at {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>}
+                </div>
                 <Box mb="md">
                     <TextInput
                         placeholder="Search items..."

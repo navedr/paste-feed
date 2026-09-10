@@ -174,7 +174,7 @@ export function FeedFeed() {
                     <BreadCrumbComponent />
                     <PinModal opened={pinModalOpen} setOpened={() => setPinModalOpen(false)} setPIN={setPIN} />
 
-                    <PasteCardComponent />
+                    <PasteCardComponent key={feedName} onSaved={() => feedItemsRef.current?.refreshItems()} />
 
                     <FeedItemsComponent ref={feedItemsRef} feedName={feedName} secret={secret} setEmpty={setEmpty} />
                 </>

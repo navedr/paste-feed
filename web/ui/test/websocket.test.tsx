@@ -101,3 +101,23 @@ test('unmount clears heartbeat deadlines and ignores late events', () => {
   expect(Socket.instances).toHaveLength(1);
   expect(vi.getTimerCount()).toBe(0);
 });
+test('connection status follows syncing, disconnection, and a restored snapshot', () => {
+  render(<FeedItemsComponent feedName="review" secret="secret" />);
+  expect(screen.getByRole('status').textContent).toContain('Connecting');
+  act(() => Socket.instances[0].open());
+  expect(screen.getByRole('status').textContent).toContain('Syncing');
+  act(() => Socket.instances[0].receive({ items: [] }));
+  expect(screen.getByRole('status').textContent).toContain('Connected');
+  expect(screen.getByRole('status').textContent).toContain('Synced at');
+  act(() => Socket.instances[0].lose());
+  expect(screen.getByRole('status').textContent).toContain('Reconnecting');
+  act(() => { vi.advanceTimersByTime(1000); Socket.instances[1].open(); Socket.instances[1].receive({ items: [] }); });
+  expect(screen.getByRole('status').textContent).toContain('Connected');
+});
+test('offline state is visible and reconnects when the browser returns online', () => {
+  render(<FeedItemsComponent feedName="review" secret="secret" />);
+  act(() => { Socket.instances[0].open(); window.dispatchEvent(new Event('offline')); });
+  expect(screen.getByRole('status').textContent).toContain('Offline');
+  act(() => window.dispatchEvent(new Event('online')));
+  expect(Socket.instances).toHaveLength(2);
+});

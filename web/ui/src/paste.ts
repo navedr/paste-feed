@@ -1,35 +1,20 @@
 import { Y } from "./FeedClient";
 
-export const PasteToFeed = (event: ClipboardEvent, feedName: string) => {
-    if (event.clipboardData === null) {
-        return;
-    }
+export function clipboardFiles(event: ClipboardEvent): File[] {
+    const clipboard = event.clipboardData;
+    if (!clipboard) return [];
+    const files = Array.from(clipboard.items)
+        .filter(item => item.kind === "file")
+        .map(item => item.getAsFile())
+        .filter((file): file is File => file !== null);
+    if (files.length) return files;
+    const text = clipboard.getData("text/plain") || clipboard.getData("text");
+    return text ? [new File([text], "Pasted Text.txt", { type: "text/plain" })] : [];
+}
 
-    const formData = new FormData();
-
-    const items = event.clipboardData.items;
-    let data: File | string | null = null;
-    let type: string | null = null;
-
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") === 0 && items[i].kind === "file") {
-            type = items[i].type;
-            data = items[i].getAsFile();
-            break;
-        } else if (items[i].type === "text/plain") {
-            type = items[i].type;
-            data = event.clipboardData.getData("text");
-            break;
-        }
-    }
-
-    if (type === null || data === null) {
-        return;
-    }
-
-    const blob = new Blob([data], { type: type });
-    formData.append("clipboard", blob);
-
-    const options = { headers: { "Content-Type": type } };
-    Y.post("/feeds/" + encodeURIComponent(feedName), formData, options);
-};
+export const PasteToFeed = (event: ClipboardEvent, feedName: string) =>
+    Promise.all(clipboardFiles(event).map(file => {
+        const formData = new FormData();
+        formData.append("file", file);
+        return Y.post("/feeds/" + encodeURIComponent(feedName), formData);
+    }));
