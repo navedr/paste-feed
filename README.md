@@ -126,3 +126,16 @@ The built server serves the UI at http://localhost:8080. Tests use temporary
 storage and do not touch your local feeds. Docker smoke tests can be run with
 `npm run test:docker` after building `paste-feed:latest`; they create and remove
 an isolated container and volume to verify startup, uploads, and persistence.
+
+### WebSocket recovery
+
+The browser requests a fresh snapshot on every connection and retries dropped
+connections after one second. It sends a heartbeat every 25 seconds and
+reconnects if no reply arrives within 10 seconds. Opening handshakes also have
+a 10-second deadline. Leaving the feed cancels retries and heartbeat timers.
+
+The server checks ping/pong liveness every 30 seconds and terminates clients
+that miss a response. Outgoing queued data, including the next message, is
+limited to 8 MiB per connection; this also limits a single feed snapshot to
+8 MiB. Connections exceeding that bound are terminated. SIGTERM and SIGINT
+close WebSockets before draining HTTP requests, with a 10-second shutdown limit.

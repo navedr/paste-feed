@@ -29,7 +29,7 @@ feedManager.masterPin = masterPin;
 wsManager.setFeedManager(feedManager);
 
 // Create and start server
-const { server } = createServer({
+const { server, shutdown } = createServer({
   feedManager,
   wsManager,
   version: process.env.npm_package_version || '0.0.0',
@@ -46,3 +46,17 @@ server.listen(port, listenAddr, () => {
   console.log(`  address: ${listenAddr}`);
   console.log(`  max-upload-size: ${maxUploadMB}MB`);
 });
+
+function stop() {
+  const deadline = setTimeout(() => process.exit(1), 10000);
+  deadline.unref();
+  shutdown().then(() => {
+    clearTimeout(deadline);
+    process.exit(0);
+  }).catch(err => {
+    console.error('Shutdown failed:', err);
+    process.exit(1);
+  });
+}
+process.once('SIGTERM', stop);
+process.once('SIGINT', stop);

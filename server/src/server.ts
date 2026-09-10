@@ -21,7 +21,7 @@ interface ServerConfig {
   uiDistPath: string;
 }
 
-export function createServer(config: ServerConfig): { app: express.Express; server: HttpServer } {
+export function createServer(config: ServerConfig): { app: express.Express; server: HttpServer; shutdown: () => Promise<void> } {
   const app = express();
 
   app.use(cookieParser());
@@ -63,7 +63,17 @@ export function createServer(config: ServerConfig): { app: express.Express; serv
   });
 
   const server = createHttpServer(app);
-  setupWebSocket(server, config.wsManager, config.feedManager);
+  const disposeWebSockets = setupWebSocket(server, config.wsManager, config.feedManager);
 
-  return { app, server };
+  let closing: Promise<void> | undefined;
+  const shutdown = () => {
+    if (!closing) {
+      disposeWebSockets();
+      closing = new Promise<void>((resolve, reject) => {
+        server.close(err => err ? reject(err) : resolve());
+      });
+    }
+    return closing;
+  };
+  return { app, server, shutdown };
 }

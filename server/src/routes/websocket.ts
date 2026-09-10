@@ -1,5 +1,5 @@
 import { Server as HttpServer } from 'node:http';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { WebSocketManager } from '../services/websocketManager.js';
 import { FeedManager } from '../models/feedManager.js';
 import { AppError } from '../utils/errors.js';
@@ -20,10 +20,37 @@ export function setupWebSocket(
   server: HttpServer,
   wsManager: WebSocketManager,
   feedManager: FeedManager,
-): void {
+  options: { heartbeatIntervalMs?: number } = {},
+): () => void {
   const wss = new WebSocketServer({ noServer: true });
 
+  const alive = new Set<WebSocket>();
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (!alive.delete(ws)) {
+        ws.terminate();
+        continue;
+      }
+      ws.ping();
+    }
+  }, options.heartbeatIntervalMs ?? 30000);
+  heartbeat.unref();
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    clearInterval(heartbeat);
+    for (const ws of wss.clients) ws.terminate();
+    alive.clear();
+    wss.close();
+  };
+  server.once('close', dispose);
+
   server.on('upgrade', (req, socket, head) => {
+    if (disposed) {
+      socket.destroy();
+      return;
+    }
     socket.on('error', () => socket.destroy());
     let feedName: string;
     let secret: string;
@@ -65,6 +92,8 @@ export function setupWebSocket(
 
     wss.handleUpgrade(req, socket, head, (ws) => {
       ws.on('error', () => ws.terminate());
+      alive.add(ws);
+      ws.on('pong', () => alive.add(ws));
       wsManager.addConnection(feedName, ws);
 
       ws.on('message', (data) => {
@@ -73,8 +102,10 @@ export function setupWebSocket(
       });
 
       ws.on('close', () => {
+        alive.delete(ws);
         wsManager.removeConnection(feedName, ws);
       });
     });
   });
+  return dispose;
 }

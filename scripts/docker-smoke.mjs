@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
+import WebSocket from 'ws';
 
 const image = process.argv[2] || 'paste-feed:latest';
 const name = `paste-feed-smoke-${randomUUID()}`;
@@ -34,7 +36,21 @@ try {
   oversized.append('file', new Blob(['x'.repeat(1024 * 1024 + 1)]), 'large.bin');
   assert.equal((await fetch(base + `/api/feeds/smoke?secret=${feed.secret}`, { method: 'POST', body: oversized })).status, 413);
   const config = docker('exec', name, 'cat', '/data/config.json');
-  docker('rm', '-f', name);
+  const socket = new WebSocket(base.replace('http:', 'ws:') + `/ws/smoke?secret=${feed.secret}`);
+  try {
+    await once(socket, 'open', { signal: AbortSignal.timeout(5000) });
+    const snapshot = once(socket, 'message', { signal: AbortSignal.timeout(5000) });
+    socket.send('feed');
+    assert.equal(JSON.parse((await snapshot)[0].toString()).items.length, 1);
+    const pong = once(socket, 'message', { signal: AbortSignal.timeout(5000) });
+    socket.send('ping');
+    assert.equal((await pong)[0].toString(), 'pong');
+    const closed = once(socket, 'close', { signal: AbortSignal.timeout(15000) });
+    docker('stop', '--time', '12', name);
+    await closed;
+    assert.equal(JSON.parse(docker('inspect', name))[0].State.ExitCode, 0);
+  } finally { socket.terminate(); }
+  docker('rm', name);
   await start();
   const restored = await fetch(base + `/api/feeds/smoke?secret=${feed.secret}`);
   assert.equal(restored.status, 200);
@@ -42,7 +58,7 @@ try {
   assert.equal(items.length, 1);
   assert.equal(await (await fetch(base + `/api/feeds/smoke/items/${encodeURIComponent(items[0].name)}?secret=${feed.secret}`)).text(), 'survives container replacement');
   assert.equal(docker('exec', name, 'cat', '/data/config.json'), config);
-  console.log(`PASS ${image}: healthy startup, UI, auth, uploads, size limit, container recreation, persistent content and VAPID keys`);
+  console.log(`PASS ${image}: healthy startup, UI, auth, uploads, size limit, WebSocket snapshot/heartbeat, graceful shutdown, container recreation, persistent content and VAPID keys`);
 } catch (err) {
   try { console.error(docker('logs', name)); } catch {}
   throw err;

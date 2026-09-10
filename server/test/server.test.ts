@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import axios from 'axios';
+import WebSocket from 'ws';
+import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from '../src/server.js';
 import { FeedManager } from '../src/models/feedManager.js';
 import { WebSocketManager } from '../src/services/websocketManager.js';
@@ -10,12 +13,13 @@ import { WebSocketManager } from '../src/services/websocketManager.js';
 let dir: string;
 let base: string;
 let server: ReturnType<typeof createServer>['server'];
+let shutdown: () => Promise<void>;
 beforeEach(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paste-feed-test-'));
   const ws = new WebSocketManager();
   const fm = new FeedManager(dir, ws);
   ws.setFeedManager(fm);
-  ({ server } = createServer({ feedManager: fm, wsManager: ws, version: 'test', vapidPublicKey: '', maxBodySize: 1024, uiDistPath: 'web/ui/dist' }));
+  ({ server, shutdown } = createServer({ feedManager: fm, wsManager: ws, version: 'test', vapidPublicKey: '', maxBodySize: 1024, uiDistPath: 'web/ui/dist' }));
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${(server.address() as any).port}/api/feeds/review`;
 });
@@ -104,4 +108,16 @@ test('existing Go feed configuration and files remain usable', async () => {
   expect(response.status).toBe(200);
   expect((await response.json()).items[0].displayName).toBe('Saved note');
   expect(await (await fetch(base + '/items/Pasted%20Text.txt?secret=old-go-secret')).text()).toBe('existing data');
+});
+
+test('shutdown completes with healthy upgraded connections still open', async () => {
+  const { secret } = await createFeed();
+  const client = new WebSocket(base.replace('/api/feeds/', '/ws/').replace('http:', 'ws:') + '?secret=' + secret);
+  await once(client, 'open');
+  const closed = once(client, 'close');
+  try {
+    await shutdown();
+    expect(await Promise.race([closed.then(() => true), delay(1000).then(() => false)])).toBe(true);
+    expect(server.listening).toBe(false);
+  } finally { client.terminate(); }
 });

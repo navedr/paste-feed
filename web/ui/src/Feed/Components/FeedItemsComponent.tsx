@@ -2,7 +2,7 @@ import { createContext, useEffect, useRef, useState, forwardRef, useImperativeHa
 import { Space, TextInput, Box } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { FeedItemComponent } from ".";
-import { Connector, Feed, FeedItem } from "../";
+import { Connector, FeedItem } from "../";
 import { useNavigate } from "react-router-dom";
 
 export const FeedItemContext = createContext<undefined | FeedItem>(undefined);
@@ -37,119 +37,110 @@ export const FeedItemsComponent = forwardRef<FeedItemsComponentHandle, FeedItems
             Connector.DeleteItem(item);
         };
 
-        const removeItem = (item: FeedItem) => {
-            const newI = feedItems.filter(i => i.name !== item.name);
-            setFeedItems(newI);
-            props.setEmpty && props.setEmpty(newI.length === 0);
-            props.setEmpty && props.setEmpty(newI.length === 0);
-        };
-
-        const addItem = (item: FeedItem) => {
-            setFeedItems(items => [item].concat(items));
-            props.setEmpty && props.setEmpty(false);
-        };
-
-        const updateItem = (item: FeedItem) => {
-            const newI = feedItems.map(i => {
-                if (i.name === item.name) {
-                    return item;
-                }
-                return i;
-            });
-            setFeedItems(newI);
-        };
+        useEffect(() => {
+            props.setEmpty?.(feedItems.length === 0);
+        }, [feedItems, props.setEmpty]);
 
         useEffect(() => {
             const webSocketURL =
                 window.location.protocol.replace("http", "ws") +
-                "//" +
-                window.location.host +
-                "/ws/" +
-                feedName +
-                "?secret=" +
-                secret;
+                "//" + window.location.host + "/ws/" + encodeURIComponent(feedName) +
+                "?secret=" + encodeURIComponent(secret);
+            let disposed = false;
+            let retryTimer: ReturnType<typeof setTimeout> | undefined;
+            let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
+            let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
 
-            function disconnect() {
-                if (ws.current === null) {
-                    return;
-                }
-                ws.current.close();
-                ws.current = null;
+            function disconnect(socket: WebSocket) {
+                clearTimeout(heartbeatTimer);
+                clearTimeout(deadlineTimer);
+                socket.onopen = socket.onclose = socket.onmessage = socket.onerror = null;
+                socket.close();
+                if (ws.current === socket) ws.current = null;
+            }
+
+            function retry(socket: WebSocket) {
+                if (disposed || ws.current !== socket) return;
+                disconnect(socket);
+                clearTimeout(retryTimer);
+                retryTimer = setTimeout(connect, 1000);
+            }
+
+            function scheduleHeartbeat(socket: WebSocket) {
+                clearTimeout(heartbeatTimer);
+                heartbeatTimer = setTimeout(() => {
+                    if (disposed || ws.current !== socket) return;
+                    try {
+                        socket.send("ping");
+                        deadlineTimer = setTimeout(() => retry(socket), 10000);
+                    } catch {
+                        retry(socket);
+                    }
+                }, 25000);
             }
 
             function connect() {
-                disconnect();
-                ws.current = new WebSocket(webSocketURL);
-                if (ws.current === null) {
-                    return;
-                }
-                ws.current.onopen = () => {
-                    console.log("websocket connected");
-                    ws.current?.send("feed");
+                if (disposed) return;
+                const socket = new WebSocket(webSocketURL);
+                ws.current = socket;
+                // Also recover when the opening handshake never completes.
+                deadlineTimer = setTimeout(() => retry(socket), 10000);
+                socket.onopen = () => {
+                    if (disposed || ws.current !== socket) return;
+                    clearTimeout(deadlineTimer);
+                    socket.send("feed");
+                    scheduleHeartbeat(socket);
                 };
-
-                ws.current.onclose = e => {
-                    console.log("websocket closed : ", e);
-
-                    if (e.code > 4000) {
+                socket.onmessage = event => {
+                    if (disposed || ws.current !== socket) return;
+                    if (event.data === "pong") {
+                        clearTimeout(deadlineTimer);
+                        scheduleHeartbeat(socket);
+                        return;
+                    }
+                    try {
+                        const message = JSON.parse(event.data);
+                        if (Array.isArray(message?.items)) {
+                            setFeedItems(message.items);
+                        } else if (message?.action === "empty") {
+                            setFeedItems([]);
+                        } else if (message?.item && typeof message.item.name === "string") {
+                            const item = message.item as FeedItem;
+                            if (message.action === "add") {
+                                setFeedItems(items => [item, ...items.filter(i => i.name !== item.name)]);
+                            } else if (message.action === "remove") {
+                                setFeedItems(items => items.filter(i => i.name !== item.name));
+                            } else if (message.action === "update") {
+                                setFeedItems(items => items.map(i => i.name === item.name ? item : i));
+                            }
+                        }
+                    } catch {
+                        // Recover a fresh snapshot rather than leaving partially updated state.
+                        retry(socket);
+                    }
+                };
+                socket.onerror = () => retry(socket);
+                socket.onclose = event => {
+                    if (disposed || ws.current !== socket) return;
+                    if (event.code === 4401 || event.code === 4404) {
+                        disconnect(socket);
                         navigate("/");
                         return;
                     }
-                    // Try to reconnect
-                    setTimeout(() => {
-                        console.log("reconnecting");
-                        connect();
-                    }, 1000);
+                    retry(socket);
                 };
             }
 
+            setFeedItems([]);
             connect();
-
             return () => {
-                const w = ws.current;
-                if (!w) {
-                    console.log("no websocket to close");
-                    return;
-                }
-                console.log("closing websocket");
-                w.onclose = null;
-                w.close();
+                disposed = true;
+                clearTimeout(retryTimer);
+                clearTimeout(heartbeatTimer);
+                clearTimeout(deadlineTimer);
+                if (ws.current) disconnect(ws.current);
             };
-        }, []);
-
-        useEffect(() => {
-            if (!ws.current) {
-                return;
-            }
-
-            ws.current.onmessage = (m: WebSocketEventMap["message"]) => {
-                const message_data = JSON.parse(m.data);
-                if (message_data) {
-                    if (Object.prototype.hasOwnProperty.call(message_data, "items")) {
-                        const f = message_data as Feed;
-                        setFeedItems(f.items);
-                        props.setEmpty && props.setEmpty(f.items.length === 0);
-                    }
-                    if (Object.prototype.hasOwnProperty.call(message_data, "action")) {
-                        interface ActionMessage {
-                            action: string;
-                            item: FeedItem;
-                        }
-                        const am = message_data as ActionMessage;
-                        if (am.action === "remove") {
-                            removeItem(am.item);
-                        } else if (am.action === "add") {
-                            addItem(am.item);
-                        } else if (am.action === "update") {
-                            updateItem(am.item);
-                        } else if (am.action === "empty") {
-                            setFeedItems([]);
-                            props.setEmpty && props.setEmpty(true);
-                        }
-                    }
-                }
-            };
-        }, [feedItems]);
+        }, [feedName, secret, navigate]);
 
         // Filter items based on search term
         const filteredItems = feedItems.filter(item =>

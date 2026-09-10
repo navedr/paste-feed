@@ -4,6 +4,31 @@ import { PublicFeedItem, FeedNotification } from '../models/types.js';
 export class WebSocketManager {
   private feedSockets: Map<string, Set<WebSocket>> = new Map();
   private feedManager: any;
+  private readonly maxBufferedBytes: number;
+
+  constructor(options: { maxBufferedBytes?: number } = {}) {
+    this.maxBufferedBytes = options.maxBufferedBytes ?? 8 * 1024 * 1024;
+  }
+
+  private disconnect(feedName: string, ws: WebSocket): void {
+    this.removeConnection(feedName, ws);
+    ws.terminate();
+  }
+
+  private send(feedName: string, ws: WebSocket, payload: string): void {
+    if (ws.readyState !== WebSocket.OPEN ||
+        ws.bufferedAmount + Buffer.byteLength(payload) > this.maxBufferedBytes) {
+      this.disconnect(feedName, ws);
+      return;
+    }
+    try {
+      ws.send(payload, err => {
+        if (err) this.disconnect(feedName, ws);
+      });
+    } catch {
+      this.disconnect(feedName, ws);
+    }
+  }
 
   setFeedManager(feedManager: any): void {
     this.feedManager = feedManager;
@@ -26,11 +51,16 @@ export class WebSocketManager {
     const sockets = this.feedSockets.get(feedName);
     if (sockets) {
       sockets.delete(ws);
+      if (sockets.size === 0) this.feedSockets.delete(feedName);
     }
   }
 
   handleMessage(feedName: string, ws: WebSocket, message: string): void {
     const trimmed = message.trim();
+    if (trimmed === 'ping') {
+      this.send(feedName, ws, 'pong');
+      return;
+    }
     if (trimmed === 'feed') {
       if (!this.feedManager) {
         return;
@@ -38,7 +68,7 @@ export class WebSocketManager {
       try {
         const feed = this.feedManager.getFeed(feedName);
         const publicFeed = feed.public();
-        ws.send(JSON.stringify(publicFeed));
+        this.send(feedName, ws, JSON.stringify(publicFeed));
       } catch (err) {
         console.error('Error handling feed message:', err);
       }
@@ -68,11 +98,7 @@ export class WebSocketManager {
     }
     const payload = JSON.stringify(notification);
     for (const ws of sockets) {
-      try {
-        ws.send(payload);
-      } catch {
-        sockets.delete(ws);
-      }
+      this.send(feedName, ws, payload);
     }
   }
 }
